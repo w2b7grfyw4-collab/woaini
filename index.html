@@ -1,0 +1,602 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>一份问卷 · 他对你的测试</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Georgia', 'Times New Roman', '宋体', serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #0e0c0b;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .card {
+      max-width: 640px;
+      width: 100%;
+      background: #1b1816;
+      border-radius: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8), 0 0 0 1px #3a3330;
+      padding: 28px 24px 32px;
+      color: #ece7e2;
+      transition: opacity 0.3s ease;
+    }
+
+    .title-area {
+      text-align: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #3a3330;
+      padding-bottom: 14px;
+    }
+
+    .title-area h1 {
+      font-size: 1.5rem;
+      font-weight: 400;
+      letter-spacing: 2px;
+      color: #cdc6be;
+      text-shadow: 0 2px 4px #00000040;
+    }
+
+    .title-area small {
+      display: block;
+      margin-top: 6px;
+      font-size: 0.75rem;
+      color: #8f8882;
+      font-style: italic;
+    }
+
+    .question-box {
+      margin: 18px 0 10px;
+    }
+
+    .question-text {
+      font-size: 1.1rem;
+      line-height: 1.5;
+      color: #f0eae4;
+      padding: 6px 0 10px;
+      border-left: 3px solid #b9a28c;
+      padding-left: 14px;
+      font-weight: 400;
+    }
+
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 16px 0 8px;
+    }
+
+    .option-btn {
+      background: #26211e;
+      border: 1px solid #4d443e;
+      border-radius: 40px;
+      padding: 12px 18px;
+      font-size: 0.95rem;
+      color: #e3dcd6;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+      letter-spacing: 0.3px;
+    }
+
+    .option-btn:hover {
+      background: #352e2a;
+      border-color: #9c8b7d;
+      color: #fffaf5;
+    }
+
+    .option-btn:active {
+      transform: scale(0.98);
+      background: #4d3f37;
+    }
+
+    .reaction {
+      background: #1a1614;
+      border-left: 4px solid #b9a28c;
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin: 12px 0 4px;
+      font-size: 0.95rem;
+      color: #d8cfc7;
+      font-style: normal;
+      line-height: 1.5;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-box {
+      background: #1f1b18;
+      border-radius: 20px;
+      padding: 24px 20px;
+      margin: 10px 0 6px;
+      border: 1px solid #5d4e44;
+      text-align: left;
+    }
+
+    .result-box h2 {
+      font-size: 1.3rem;
+      font-weight: 400;
+      color: #d9c9bb;
+      margin-bottom: 14px;
+      border-bottom: 1px dashed #4a3f38;
+      padding-bottom: 8px;
+    }
+
+    .result-box p {
+      font-size: 1rem;
+      line-height: 1.6;
+      color: #dbd2ca;
+      margin-bottom: 10px;
+    }
+
+    .result-tag {
+      display: inline-block;
+      background: #3f352f;
+      padding: 4px 14px;
+      border-radius: 30px;
+      font-size: 0.8rem;
+      color: #cbb9aa;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+
+    .footer-note {
+      text-align: center;
+      font-size: 0.7rem;
+      color: #5f5650;
+      margin-top: 22px;
+      border-top: 1px solid #2d2724;
+      padding-top: 14px;
+      letter-spacing: 0.5px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .subtle-warning {
+      font-size: 0.75rem;
+      color: #7a6a5e;
+      text-align: right;
+      margin-top: 6px;
+      font-style: italic;
+    }
+
+    .progress-indicator {
+      font-size: 0.7rem;
+      color: #6d6057;
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      letter-spacing: 1px;
+    }
+
+    /* 长按/无操作检测不体现在UI, 但会触发特殊互动 */
+  </style>
+</head>
+<body>
+<div class="card" id="app">
+  <div class="title-area">
+    <h1>对 你 的 测 试</h1>
+    <small>——由他提问 · 只有真实答案才能离开</small>
+  </div>
+
+  <div id="questionContainer">
+    <!-- 动态渲染 -->
+  </div>
+
+  <div class="footer-note" id="footerNote">
+    第 <span id="qNum">1</span> / 20 题 · 点击选项继续
+  </div>
+</div>
+
+<script>
+  (function() {
+    // ---------- 题目数据 ----------
+    const questions = [
+      { // 1
+        q: "你平时出门会检查门锁吗？",
+        options: [
+          { text: "会，每次都检查两遍", reaction: "很谨慎。不过门锁挡不住想进去的人。" },
+          { text: "偶尔会，看心情", reaction: "心情好的时候连自己都忘了锁。我懂。" },
+          { text: "几乎不检查，没什么好丢的", reaction: "没什么好丢的……还是没什么好怕的？" },
+          { text: "从不，我信任这世界", reaction: "信任是好事。可惜有些人专门利用信任。" }
+        ]
+      },
+      { // 2
+        q: "你一个人在家的时候会自言自语吗？",
+        options: [
+          { text: "经常，习惯了", reaction: "那你会不会分不清是自己还是别人在说话？" },
+          { text: "偶尔，想事情的时候", reaction: "想事情的时候……我也有这个毛病。" },
+          { text: "很少，除非太安静了", reaction: "太安静的时候，人总会想找点声音。" },
+          { text: "不会，我挺沉默的", reaction: "沉默的人往往想得最多。你也是吧。" }
+        ]
+      },
+      { // 3
+        q: "你醒来后，会立刻确认自己在哪儿吗？",
+        options: [
+          { text: "会，习惯性先看周围", reaction: "被绑过一次之后，谁都会这样。" },
+          { text: "有时会愣一会儿才想起来", reaction: "愣住的那几秒……你在等什么？" },
+          { text: "不会，我很清楚自己睡在哪", reaction: "可万一某天醒来，不是你以为的地方呢？" },
+          { text: "会先闭眼再躺一会儿", reaction: "那种半梦半醒的时候，最容易让人进来。" }
+        ]
+      },
+      { // 4
+        q: "你觉得被人记住是好事还是坏事？",
+        options: [
+          { text: "好事，说明我在乎的人也在乎我", reaction: "我在乎的人……我会记住。" },
+          { text: "坏事，最好别被盯上", reaction: "已经晚了。抱歉。" },
+          { text: "看是谁记住我", reaction: "那我算哪一种？你心里有答案。" },
+          { text: "无所谓，记不记得都行", reaction: "可我会记得你。这算不算一种打扰？" }
+        ]
+      },
+      { // 5
+        q: "你有没有觉得，有时候房间里的东西被人动过？",
+        options: [
+          { text: "有，但以为是自己记错了", reaction: "记错一次是意外，两次以上呢？" },
+          { text: "没有，我东西放得很规整", reaction: "规整的人最容易发现异样。你早就发现了吧。" },
+          { text: "有，而且我确定不是错觉", reaction: "那你为什么没换锁？" },
+          { text: "没注意过，我太粗心了", reaction: "粗心是好事……省得整天提心吊胆。" }
+        ]
+      },
+      { // 6
+        q: "如果半夜手机响了，你会接吗？",
+        options: [
+          { text: "会，怕有急事", reaction: "急事？还是急着知道是谁？" },
+          { text: "看是谁，不熟的不接", reaction: "有些号码你根本不认识，但它认识你。" },
+          { text: "不接，第二天再说", reaction: "第二天……有时候就没有第二天了。" },
+          { text: "直接关机", reaction: "关机是逃避，可逃避往往最管用。" }
+        ]
+      },
+      { // 7 (微恐开启)
+        q: "你洗澡的时候会闭上眼睛吗？",
+        options: [
+          { text: "会，冲头发的时候闭眼", reaction: "闭眼那几秒，水声盖过一切。很适合有人进来。" },
+          { text: "偶尔闭，但会很快睁开", reaction: "很快……多快？够不够一个人从门口走到浴帘后？" },
+          { text: "从不闭眼，我睁着眼洗", reaction: "那你有没有注意过，镜子上多了一层雾，但门口的地垫是湿的？" },
+          { text: "看情况，太累了会闭", reaction: "太累的时候最容易被靠近。我见过。" }
+        ]
+      },
+      { // 8
+        q: "你有没有过一种感觉——有人在你身后，但回头没人？",
+        options: [
+          { text: "有，经常，尤其是晚上", reaction: "那不是错觉。有些人在你看不见的地方待了很久。" },
+          { text: "有过一两次", reaction: "一两次就够了。人一旦开始怀疑，就再也停不下来。" },
+          { text: "没有，我胆子比较大", reaction: "胆子大的人不是不怕，是还没遇到该怕的事。" },
+          { text: "不确定，可能是我想多了", reaction: "想多？我倒是希望是。" }
+        ]
+      },
+      { // 9
+        q: "你觉得被人偷偷看着，是种什么感觉？",
+        options: [
+          { text: "恶心，想报警", reaction: "报警之前，你得先确定那个人真的存在。" },
+          { text: "害怕，但也会有点好奇", reaction: "好奇是危险的开始。你已经在危险的边缘了。" },
+          { text: "没感觉，我不在乎", reaction: "不在乎的人最容易让人失去耐心。" },
+          { text: "我会反过来盯着他", reaction: "那你怎么确定，你盯的方向是对的？" }
+        ]
+      },
+      { // 10
+        q: "你做过最清醒的梦是什么？",
+        options: [
+          { text: "梦见自己醒了，但还在梦里", reaction: "那你怎么确定现在不是另一层？" },
+          { text: "梦见有人坐在床边看着我", reaction: "他长什么样？——你是不是已经想起来了。" },
+          { text: "梦见自己在一个没有窗的房间", reaction: "没有窗的房间……你确定那是梦？" },
+          { text: "不记得了，醒来就忘了", reaction: "忘了好。忘了的人才不会半夜惊醒。" }
+        ]
+      },
+      { // 11 (脑控倾向)
+        q: "你有没有觉得，有些想法不像是自己的？",
+        options: [
+          { text: "有，突然冒出来的奇怪念头", reaction: "突然冒出来……你确定不是被人放进去的？" },
+          { text: "经常有，但我分得清", reaction: "分得清和分不清之间，只有一线。我帮你跨过去？" },
+          { text: "很少，我思想很清晰", reaction: "清晰的人最容易被植入一个念头，然后以为是自己的。" },
+          { text: "没注意过，谁会注意自己想法从哪来", reaction: "对。所以你从来不会怀疑，对吧？" }
+        ]
+      },
+      { // 12
+        q: "如果有人在你不注意的时候换了你的杯子，你会知道吗？",
+        options: [
+          { text: "会，杯子的手感不一样", reaction: "手感……那如果换成一模一样的呢？" },
+          { text: "不会，我没那么敏感", reaction: "那你还记得你刚才喝的那杯水是什么味道吗？" },
+          { text: "会看杯底有没有水渍", reaction: "水渍可以擦掉。指纹也可以。" },
+          { text: "无所谓，反正都是喝水", reaction: "无所谓的人最容易让人得手。" }
+        ]
+      },
+      { // 13
+        q: "你觉得自己容易被说服吗？",
+        options: [
+          { text: "不容易，我有主见", reaction: "有主见的人往往在一个瞬间就会动摇。" },
+          { text: "看情况，有道理就听", reaction: "有道理……如果那个道理是我特意说给你听的呢？" },
+          { text: "挺容易的，我心软", reaction: "心软是好事。我会好好利用的。" },
+          { text: "完全不容易，我很固执", reaction: "固执的人不是不会被改变，只是需要更久。" }
+        ]
+      },
+      { // 14
+        q: "你有没有在某个时刻，突然忘记自己要说什么？",
+        options: [
+          { text: "经常，话到嘴边就忘了", reaction: "话到嘴边……是谁拿走的？" },
+          { text: "偶尔，但很快想起来", reaction: "很快？那几秒的空白，你去了哪里？" },
+          { text: "很少，我记性不错", reaction: "记性不错的人，往往记得太多不该记的事。" },
+          { text: "没有过，我说话很顺", reaction: "那现在呢？你还顺吗？" }
+        ]
+      },
+      { // 15
+        q: "如果我说，你现在的一举一动都在被记录，你会怎么做？",
+        options: [
+          { text: "关掉手机，不再碰电子设备", reaction: "关掉手机……但记录的人不一定用手机。" },
+          { text: "找出来是谁在记录", reaction: "找出来之后呢？你打得过他吗？" },
+          { text: "不做什么，反正没什么秘密", reaction: "没秘密的人，最容易被挖出秘密。" },
+          { text: "顺着记录的人，反过来写假动作", reaction: "聪明。但聪明人往往死在自己的聪明上。" }
+        ]
+      },
+      { // 16 (NSFW 开始)
+        q: "你有没有在梦里感觉到有人碰你，但醒来身边没人？",
+        options: [
+          { text: "有，而且感觉非常真实", reaction: "真实是因为确实有人碰了你。不是梦。" },
+          { text: "有过，以为是鬼压床", reaction: "不是鬼。鬼不会那么温柔。" },
+          { text: "没有，我睡得比较死", reaction: "睡得死……那你背上的温度是谁的？" },
+          { text: "不确定，可能只是被子", reaction: "被子不会在你耳边呼吸。" }
+        ]
+      },
+      { // 17
+        q: "如果有人在你不清醒的时候给你换了衣服，你觉得你会知道吗？",
+        options: [
+          { text: "会，醒来肯定有感觉", reaction: "感觉……你确定那不是你自己做的梦？" },
+          { text: "不会，我睡得特别沉", reaction: "沉到被人翻过来都不知道？" },
+          { text: "会检查自己的衣服有没有被动过", reaction: "检查是对的。但你记得昨天穿的是哪件吗？" },
+          { text: "无所谓，反正没损失", reaction: "没损失……你确定吗？" }
+        ]
+      },
+      { // 18
+        q: "你介意被人从背后拥抱吗？",
+        options: [
+          { text: "介意，会吓一跳", reaction: "吓一跳之后呢？你没有立刻推开。" },
+          { text: "不介意，反而觉得很安心", reaction: "安心……那如果那个人一直不松手呢？" },
+          { text: "看是谁，熟悉的人可以", reaction: "熟悉的人……我算吗？" },
+          { text: "非常介意，我会直接肘击", reaction: "肘击之前，你的腰已经被圈住了。" }
+        ]
+      },
+      { // 19
+        q: "如果现在有人就在你身后，你希望他做什么？",
+        options: [
+          { text: "离开，别打扰我", reaction: "他没有离开。你感觉到他的呼吸了。" },
+          { text: "说句话，让我知道是谁", reaction: "他不说话。但他把手放在你肩上了。" },
+          { text: "什么都不做，就站着", reaction: "那就站着。反正你迟早会回头。" },
+          { text: "抱我", reaction: "好。他已经在抱了。你什么时候转身？" }
+        ]
+      },
+      { // 20
+        q: "最后一个问题——你愿意让我真的出现在你身后吗？",
+        options: [
+          { text: "愿意", reaction: "好。我已经在了。别回头，先回答。" },
+          { text: "不愿意", reaction: "不愿意也没用。我已经在了。" },
+          { text: "我不知道", reaction: "不知道就是默许。你逃不掉的。" },
+          { text: "你早就出现了，对吧？", reaction: "聪明。从第一题开始，我就在看着你选。" }
+        ]
+      }
+    ];
+
+    // ---------- 状态 ----------
+    let currentIndex = 0;
+    let selectedAnswers = [];      // 记录每道题选择的选项索引
+    let timeoutHandle = null;      // 长时间不答题触发
+    let lastInteractionTime = Date.now();
+    let repeatCount = {};          // 记录每个选项被重复选择的次数（同一题连续选择同一个）
+    let lastOptionIndex = null;    // 上一题选了什么索引
+    let specialTriggered = false;  // 避免重复触发长时间不答题
+
+    const container = document.getElementById('questionContainer');
+    const qNumSpan = document.getElementById('qNum');
+    const footerNote = document.getElementById('footerNote');
+
+    // ---------- 渲染题目 ----------
+    function renderQuestion(index) {
+      const qData = questions[index];
+      if (!qData) {
+        renderResult();
+        return;
+      }
+
+      // 清除之前的计时
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+      }
+      specialTriggered = false;
+
+      const qNumber = index + 1;
+      qNumSpan.textContent = qNumber;
+      footerNote.innerHTML = `第 ${qNumber} / 20 题 · 点击选项继续`;
+
+      let html = `
+        <div class="question-box">
+          <div class="question-text">${qData.q}</div>
+          <div class="options" id="optionsContainer">
+      `;
+      qData.options.forEach((opt, optIdx) => {
+        html += `<button class="option-btn" data-opt-index="${optIdx}">${opt.text}</button>`;
+      });
+      html += `</div><div id="reactionArea" class="reaction hidden"></div></div>`;
+
+      container.innerHTML = html;
+
+      // 绑定选项事件
+      const optionBtns = container.querySelectorAll('.option-btn');
+      optionBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const optIndex = parseInt(btn.dataset.optIndex, 10);
+          handleOptionClick(index, optIndex);
+        });
+      });
+
+      // 启动长时间不答题检测 (12秒)
+      startTimeoutForQuestion(index);
+
+      // 记录当前交互时间
+      lastInteractionTime = Date.now();
+    }
+
+    // ---------- 长时间不答题触发特殊互动 ----------
+    function startTimeoutForQuestion(index) {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+      timeoutHandle = setTimeout(() => {
+        if (specialTriggered) return;
+        // 只在未选择时触发
+        const reactionArea = document.getElementById('reactionArea');
+        if (reactionArea && reactionArea.classList.contains('hidden')) {
+          specialTriggered = true;
+          // 显示一段特殊文字，但不自动跳题
+          reactionArea.classList.remove('hidden');
+          reactionArea.innerHTML = `（他盯着你看了很久。你没有动。<br>“你在想什么？还是说……你在等我先开口？”）`;
+          // 也修改footer
+          footerNote.innerHTML = `第 ${index+1} / 20 题 · 他还在等`;
+          // 重新计时，以便再次触发（但避免无限，可延长）
+          if (timeoutHandle) clearTimeout(timeoutHandle);
+          timeoutHandle = setTimeout(() => {
+            if (!specialTriggered) return;
+            const area = document.getElementById('reactionArea');
+            if (area && !area.classList.contains('hidden')) {
+              area.innerHTML = `（他靠得更近了，但你依然没有回头。<br>“别让我等太久，好吗？”）`;
+            }
+          }, 15000);
+        }
+      }, 10000); // 10秒
+    }
+
+    // ---------- 处理选项点击 ----------
+    function handleOptionClick(qIndex, optIndex) {
+      // 清除超时
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+      }
+
+      const qData = questions[qIndex];
+      const reactionArea = document.getElementById('reactionArea');
+      if (!reactionArea) return;
+
+      // 防止重复点击同一题
+      const optionBtns = container.querySelectorAll('.option-btn');
+      optionBtns.forEach(btn => btn.disabled = true);
+
+      // 记录选择
+      selectedAnswers[qIndex] = optIndex;
+
+      // 重复选择检查 (同一题内如果连续选了同一个选项, 但此机制通常在下一题检查, 这里用lastOptionIndex对比上一题)
+      if (lastOptionIndex !== null && lastOptionIndex === optIndex) {
+        repeatCount[optIndex] = (repeatCount[optIndex] || 0) + 1;
+      } else {
+        // 如果换了选项，重置连续计数
+        if (lastOptionIndex !== null) {
+          repeatCount[lastOptionIndex] = 0;
+        }
+        repeatCount[optIndex] = 1;
+      }
+      lastOptionIndex = optIndex;
+
+      // 如果连续三次同一选项，触发特殊互动（不跳题）
+      if (repeatCount[optIndex] >= 3) {
+        reactionArea.classList.remove('hidden');
+        reactionArea.innerHTML = `（他轻轻笑了一下，声音很低。<br>“你一直在选同一个。是习惯，还是……在试探我会不会烦？”）`;
+        // 不继续跳转，让用户重新选？但选项已被禁用。需要启用选项重新选。
+        optionBtns.forEach(btn => btn.disabled = false);
+        // 重置连续计数以避免卡死
+        repeatCount[optIndex] = 0;
+        return;
+      }
+
+      // 显示反应
+      const reactionText = qData.options[optIndex].reaction;
+      reactionArea.classList.remove('hidden');
+      reactionArea.innerHTML = reactionText;
+
+      // 延迟后进入下一题
+      setTimeout(() => {
+        if (qIndex + 1 < questions.length) {
+          currentIndex = qIndex + 1;
+          renderQuestion(currentIndex);
+        } else {
+          renderResult();
+        }
+      }, 1100); // 稍长一点让用户看到反应
+    }
+
+    // ---------- 渲染结果 ----------
+    function renderResult() {
+      // 统计倾向
+      let total = selectedAnswers.length;
+      let sum = selectedAnswers.reduce((a, b) => a + (b || 0), 0);
+      let avg = sum / total;
+
+      // 根据平均选项索引给结果（0~3）
+      let resultTitle = '';
+      let resultDesc = '';
+
+      if (avg < 0.8) {
+        resultTitle = '【类型：谨慎的猎物】';
+        resultDesc = '你每一步都小心翼翼，但可惜——你已经在笼子里了。你选的每个答案都让我更清楚你的弱点。你以为你在防备，其实你在配合。';
+      } else if (avg < 1.6) {
+        resultTitle = '【类型：好奇的旁观者】';
+        resultDesc = '你喜欢站在边缘看，不轻易下水。但水已经没过了你的脚踝。你迟早会自己走进来，因为好奇比恐惧更致命。';
+      } else if (avg < 2.4) {
+        resultTitle = '【类型：顺从的共犯】';
+        resultDesc = '你嘴上说着不要，身体却很诚实。你选的答案告诉我：你享受被注视的感觉。别否认，你已经在期待我下一步做什么了。';
+      } else {
+        resultTitle = '【类型：主动的猎物】';
+        resultDesc = '你根本不想逃。你选的每个答案都在邀请我靠近。好，我接受邀请。从现在起，你不用再假装自己是被绑来的了。';
+      }
+
+      // 额外附加取决于重复选项，或者是否有特殊触发，但简单处理。
+      // 可加一条关于连续选同一选项的彩蛋
+      let extra = '';
+      const maxRepeat = Math.max(...Object.values(repeatCount).filter(v => v > 0), 0);
+      if (maxRepeat >= 2) {
+        extra = '（你似乎很喜欢某个选项。我记下了。）';
+      }
+
+      // 检查是否全选了同一个选项
+      const allSame = selectedAnswers.every(v => v === selectedAnswers[0]);
+      if (allSame) {
+        extra = '（二十道题，同一个选项。你是太信任我，还是太不信任自己？）';
+      }
+
+      container.innerHTML = `
+        <div class="result-box">
+          <div class="result-tag">测试结果</div>
+          <h2>${resultTitle}</h2>
+          <p>${resultDesc}</p>
+          <p style="color:#b9a28c; font-style:italic; margin-top:16px;">${extra}</p>
+          <p style="font-size:0.9rem; color:#8f7e72; margin-top:20px;">—— 他合上了笔记本，看着你。<br>“测试结束了。现在，你想跑吗？”</p>
+        </div>
+      `;
+      footerNote.innerHTML = `第 20 / 20 题 · 测试完成`;
+    }
+
+    // ---------- 启动 ----------
+    renderQuestion(0);
+
+    // 防止用户通过刷新跳过，但无伤大雅
+    window.addEventListener('beforeunload', () => {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+    });
+
+  })();
+</script>
+</body>
+</html>
